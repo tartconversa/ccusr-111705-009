@@ -1,7 +1,7 @@
 """使用真实 Chromium 浏览公开目录；详情与预览另由业务采集流程处理。"""
 from playwright.sync_api import sync_playwright
 from urllib.parse import urlsplit
-from .domain import interpret_card
+from .domain import interpret_card, interpret_entry
 
 def read_catalog(origin):
     parts = urlsplit(origin)
@@ -17,5 +17,32 @@ def read_catalog(origin):
                 raise ValueError('来源目录未加载')
             items = page.locator('.card').evaluate_all('(nodes) => nodes.map(n => ({id:n.dataset.key,name:n.querySelector("h2").textContent,summary:n.querySelector("p").textContent,href:n.querySelector("a").getAttribute("href")}))')
             return [{'source':page.url, **item, 'catalog_fact':interpret_card(item)} for item in items]
+        finally:
+            browser.close()
+
+def read_detail_entry(origin, item_id, selection=None):
+    parts = urlsplit(origin)
+    if parts.hostname not in ('127.0.0.1', 'localhost') or parts.scheme != 'http':
+        raise ValueError('local origins only')
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.goto(origin, wait_until='domcontentloaded')
+            card = page.locator(f'.card[data-key="{item_id}"]')
+            if card.count() != 1:
+                raise ValueError('card identity is not unique')
+            catalog = {'id': item_id, 'summary': card.locator('p').inner_text()}
+            card.locator('a').click()
+            if page.locator('main').get_attribute('data-key') != item_id:
+                raise ValueError('detail identity differs from catalog')
+            if selection is not None:
+                if selection == '东区':
+                    page.locator('#pan').click()
+            catalog_fact = interpret_card(catalog)
+            entry_signal = {'region': page.locator('#viewport').get_attribute('data-region'), 'store': page.locator('.marker').get_attribute('data-store'), 'map_complete': page.locator('#viewport').get_attribute('data-complete')}
+            return {'id': item_id, 'source': page.url, 'catalog_fact': catalog_fact,
+                    'opening_summary': page.locator('#summary').inner_text(),
+                    'detail_fact': interpret_entry(catalog_fact, entry_signal)}
         finally:
             browser.close()

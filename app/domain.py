@@ -11,3 +11,9 @@ def interpret_card(item):
         raise ValueError('卡片状态未识别')
     amount = found.group('amount')
     return {'kind': 'opening', 'identity': item['id'], 'condition': condition, 'opening_state': observation, 'state': int(amount) if amount.isdigit() else amount}
+
+def interpret_entry(catalog_fact, signal):
+    if signal['region'] not in ('中心区', '东区') or signal['store'] not in ('store-01', 'store-02'):
+        raise ValueError('unknown map scope or marker')
+    return {'business_key': f"{signal['region']}:{signal['store']}", 'catalog_store': catalog_fact['identity'],
+            'visible_store': signal['store'], 'region': signal['region'], 'map_complete': signal['map_complete']}
