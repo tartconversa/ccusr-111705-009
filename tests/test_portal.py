@@ -10,6 +10,6 @@ class PortalInteractionTest(BrowserBaselineTest):
             try:
                 page = browser.new_page()
                 page.goto(self.origin + "detail?id=" + DATA["items"][0]["id"], wait_until="domcontentloaded")
-                page.locator('#pan').click();self.assertEqual(page.locator('#viewport').get_attribute('data-region'),'东区');self.assertEqual(page.locator('.marker').get_attribute('data-store'),'store-02')
+                page.locator('.marker').click();self.assertIn('store-01',page.locator('#store-popover').inner_text());page.locator('#pan').click();page.locator('.marker').click();page.locator('#brand').click();self.assertIn('store-02',page.locator('#store-popover').inner_text());self.assertEqual(page.locator('#brand-state').inner_text(),'试营业');page.locator('#zoom').click();self.assertEqual(page.locator('#viewport').get_attribute('data-complete'),'false')
             finally:
                 browser.close()
